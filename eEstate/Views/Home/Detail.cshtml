@@ -1,0 +1,62 @@
+﻿@{
+    ViewData["Title"] = "Estate Sample";
+}
+
+@model DetailViewModel
+
+
+<table class="table table-bordered table-responsive table-hover">
+    <tr>
+        <th>Image</th>
+        <th>Name</th>
+        <th>Distance</th>
+        <th>Coordinates</th>
+        <th>Price</th>
+        <th>Area</th>
+        <th>PostingDate</th>
+        <th>Juridical</th>
+        <th>Direction</th>
+    </tr>
+
+    <tr>
+        <td><img src="~/images/@Model.PhotoPath"  height="42" width="42"> </td>
+        <td>@Model.Name</td>
+        <td>@Model.Distance</td>
+        <td>@Model.Latitude, @Model.Longitude</td>
+        <td>@Model.Price</td>
+        <td>@Model.Area</td>
+        <td>@Model.PostingDate</td>
+        <td>@Model.Juridical</td>
+        <td>@Model.Direction</td>
+    </tr>
+
+</table>
+
+<form enctype="multipart/form-data" asp-controller="home" asp-action="detail" asp-route-id="@Model.Id" method="post">
+    <div class="form-group row">
+        <label asp-for="Photo" class="col-sm-2 col-form-label"></label>
+        <div class="col-sm-10">
+            <div class="custom-file">
+                <input asp-for="Photo" class="form-control custom-file-input">
+                <label class="custom-file-label">Choose File...</label>
+            </div>
+        </div>
+    </div>
+    <div class="form-group row">
+        <div class="col-sm-10">
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </div>
+    </div>
+</form>
+
+ @section Scripts {
+        <script>
+            $(document).ready(function () {
+                $('.custom-file-input').on("change", function () {
+                    var fileName = $(this).val().split("\\").pop();
+                    $(this).next('.custom-file-label').html(fileName);
+                });
+            });
+        </script>
+    }
+
