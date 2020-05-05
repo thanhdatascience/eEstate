@@ -1,9 +1,15 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using Azure.Storage.Blobs;
 using eEstate.Models;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using NetTopologySuite.Geometries;
 using static eEstate.SpatialSample;
 
@@ -13,6 +19,11 @@ namespace SpatialSample.Controllers
     {
         private readonly SpatialDbContext _spatialDbContext;
         private readonly IHostingEnvironment hostingEnvironment;
+        private readonly IConfiguration _configuration;
+        public HomeController(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
 
         public HomeController(SpatialDbContext spatialDbContext,
                                 IHostingEnvironment hostingEnvironment)
@@ -68,18 +79,62 @@ namespace SpatialSample.Controllers
             return View("Index", indexViewModel);
         }
 
-        public IActionResult Detail(int Id, DetailViewModel model)
+        //public IActionResult Detail(int Id, DetailViewModel model)
+        //{
+        //    string uniqueFileName = null;
+        //    if(model.Photo != null)
+        //    {
+        //        string uploadsFolder = Path.Combine(hostingEnvironment.WebRootPath, "images");
+        //        uniqueFileName = Guid.NewGuid().ToString() + "_" + model.Photo.FileName;
+        //        string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+        //        model.Photo.CopyTo(new FileStream(filePath, FileMode.Create));
+        //        _spatialDbContext.TouristAttractions.Find(Id).PhotoPath = filePath;
+        //        _spatialDbContext.SaveChanges();
+        //    }
+
+        //var touristAttractions = _spatialDbContext.TouristAttractions.FirstOrDefault(i => i.Id == Id);
+        //var detailViewModel = new DetailViewModel()
+        //{
+        //    Id = touristAttractions.Id,
+        //    Name = touristAttractions.Name,
+        //    Price = touristAttractions.Price,
+        //    Area = touristAttractions.Area,
+        //    PostingDate = touristAttractions.PostingDate,
+        //    Juridical = touristAttractions.Juridical,
+        //    Direction = touristAttractions.Direction,
+        //    PhotoPath = Path.GetFileName(touristAttractions.PhotoPath)
+        //};
+
+        //    return View("Detail", detailViewModel);
+
+        //}
+        [HttpPost]
+        public async Task<IActionResult> Detail(int Id, IFormFile files)
         {
-            string uniqueFileName = null;
-            if(model.Photo != null)
+            string blobstorageconnection = _configuration.GetValue<string>("blobstorage");
+
+            byte[] dataFiles;
+            // Retrieve storage account from connection string.
+            CloudStorageAccount cloudStorageAccount = CloudStorageAccount.Parse(blobstorageconnection);
+            // Create the blob client.
+            CloudBlobClient cloudBlobClient = cloudStorageAccount.CreateCloudBlobClient();
+            // Retrieve a reference to a container.
+            CloudBlobContainer cloudBlobContainer = cloudBlobClient.GetContainerReference("filescontainers");
+
+            BlobContainerPermissions permissions = new BlobContainerPermissions
             {
-                string uploadsFolder = Path.Combine(hostingEnvironment.WebRootPath, "images");
-                uniqueFileName = Guid.NewGuid().ToString() + "_" + model.Photo.FileName;
-                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                model.Photo.CopyTo(new FileStream(filePath, FileMode.Create));
-                _spatialDbContext.TouristAttractions.Find(Id).PhotoPath = filePath;
-                _spatialDbContext.SaveChanges();
+                PublicAccess = BlobContainerPublicAccessType.Blob
+            };
+            string systemFileName = files.FileName;
+            await cloudBlobContainer.SetPermissionsAsync(permissions);
+            await using (var target = new MemoryStream())
+            {
+                files.CopyTo(target);
+                dataFiles = target.ToArray();
             }
+            // This also does not make a service call; it only creates a local object.
+            CloudBlockBlob cloudBlockBlob = cloudBlobContainer.GetBlockBlobReference(systemFileName);
+            await cloudBlockBlob.UploadFromByteArrayAsync(dataFiles, 0, dataFiles.Length);
 
             var touristAttractions = _spatialDbContext.TouristAttractions.FirstOrDefault(i => i.Id == Id);
             var detailViewModel = new DetailViewModel()
@@ -91,11 +146,9 @@ namespace SpatialSample.Controllers
                 PostingDate = touristAttractions.PostingDate,
                 Juridical = touristAttractions.Juridical,
                 Direction = touristAttractions.Direction,
-                PhotoPath = Path.GetFileName(touristAttractions.PhotoPath)
             };
-            
-            return View("Detail", detailViewModel);
 
+            return View("Detail", detailViewModel);
         }
     }
 }
