@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using static eEstate.SpatialSample;
+using Microsoft.Extensions.Azure;
 
 namespace eEstate
 {
@@ -27,6 +28,11 @@ namespace eEstate
         {
             services.AddControllersWithViews();
             services.AddDbContext<SpatialDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("EstateConnection"), x => x.UseNetTopologySuite()));
+
+            services.AddAzureClients(builder =>
+            {
+                builder.AddBlobServiceClient(Configuration["ConnectionStrings:EstateConnection1"]);
+            });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
